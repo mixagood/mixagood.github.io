@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description">
+    <title>Список дел</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1 id="mainTitle">Добро пожаловать!</h1>
+
+        <nav>
+            <button id="mainBtn">На главную</button>
+            <button id="profileBtn">К профилю</button>
+        </nav>
+
+    </header>
+
+    <main>
+        <div id="mainPage">
+            <h3>Список задач</h3>
+            <div id="todoList"></div>
+            <div class="pagination">
+                <button id="loadPrevBtn">Предыдущая страница</button>
+                <span id="pageIndicator"></span>
+                <button id="loadMoreBtn">Следующая страница</button>
+            </div>                
+        </div>
+        
+        <div id="profilePage">
+            <div class="profileData">
+                <img src="images.jpeg" width="100px" height="100px">
+                <label>Имя</label>
+                <input placeholder="Ваше имя" disabled="true" id="nameInput">
+                <label>Email</label>
+                <input placeholder="Ваш email" disabled="true" id="emailInput">
+                <button onclick="allowChange()" id="editButton">Редактировать</button>
+            </div>
+        </div>
+
+    </main>
+
+    <footer>
+        Сделано в 2025г.
+    </footer>
+    
+</body>
+
+<script>
+    let todos = [];
+    let isChanging = false;
+    const GET_API_URL = "https://jsonplaceholder.typicode.com/todos";
+    let currentPage = 1;    // Текущая страница
+    const pageSize = 30;    // Количество задач на страницу
+
+    function setActiveNavButton(buttonId) {
+        document.querySelectorAll('nav button').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(buttonId).classList.add('active');
+    }
+
+    function toMainPage() {
+        currentPage = 1; // Сброс на первую страницу
+        document.getElementById("mainPage").style.display = "block";
+        document.getElementById("profilePage").style.display = "none";
+        setActiveNavButton('mainBtn');
+        render();
+    }
+
+    function toProfilePage() {
+        document.getElementById("profilePage").style.display = "block";
+        document.getElementById("mainPage").style.display = "none";
+        setActiveNavButton('profileBtn');
+        renderProfile();
+    }
+
+
+
+    async function fetchTodos() {
+        try {
+            let result = await fetch(GET_API_URL);
+            let data = await result.json();
+            todos = data;
+            currentPage = 1;
+
+        } catch (error) {
+            console.error(error);            
+        }
+    }
+
+    async function render() {
+        window.scrollTo(0, 0);
+        let mainTitle = document.getElementById('mainTitle');
+        let userName = localStorage.getItem('userName');
+        if (userName) { mainTitle.innerHTML = `Добро пожаловать, ${userName}!` }
+
+        if (currentPage * pageSize >= todos.length) {
+            document.getElementById('loadMoreBtn').disabled = true;
+        } else {
+            document.getElementById('loadMoreBtn').disabled = false;
+        }
+
+        if (currentPage == 1) {
+            document.getElementById('loadPrevBtn').disabled = true;
+        } else {
+            document.getElementById('loadPrevBtn').disabled = false;
+        }
+
+        document.getElementById('pageIndicator').innerText = `Страница ${currentPage}`;
+
+
+        let todoList = document.getElementById('todoList');
+        todoList.innerHTML = '';
+
+        const start = (currentPage - 1) * pageSize;
+        const end = currentPage * pageSize;
+        const visibleTodos = todos.slice(start, end);
+
+        visibleTodos.forEach((task, index) => createListElement(task, index));
+    }
+
+    function createListElement(task, index) {
+        let list = document.getElementById('todoList');
+        let taskElement = document.createElement('div');
+        taskElement.classList.add('taskCard');
+        let checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        let text = document.createElement('p');
+        text.innerHTML = task.title;
+        checkbox.checked = task.completed;
+        checkbox.disabled = true;
+        if (task.completed) {taskElement.classList.add('completed')} 
+        else {taskElement.classList.add('pending')};
+
+        taskElement.appendChild(checkbox);
+        taskElement.appendChild(text);
+        list.appendChild(taskElement);
+    }
+
+    function allowChange() {
+        isChanging = !isChanging;
+
+        let editButton = document.getElementById('editButton');
+        let nameInput = document.getElementById('nameInput');
+        let emailInput = document.getElementById('emailInput');
+
+        if (isChanging) {
+            editButton.innerHTML = 'Сохранить';
+            nameInput.disabled = false;
+            emailInput.disabled = false;
+
+        } else {
+            editButton.innerHTML = 'Редактировать';
+            nameInput.disabled = true;
+            emailInput.disabled = true;
+            
+            localStorage.setItem('userName', nameInput.value);
+            localStorage.setItem('userEmail', emailInput.value);
+        }
+    }
+
+    function renderProfile() {
+        let nameInput = document.getElementById('nameInput');
+        let emailInput = document.getElementById('emailInput');
+
+        nameInput.value = localStorage.getItem('userName') || '';
+        emailInput.value = localStorage.getItem('userEmail') || '';
+    }
+
+    async function init() {
+        document.getElementById('mainBtn').addEventListener('click', toMainPage);
+        document.getElementById('profileBtn').addEventListener('click', toProfilePage);
+
+        document.getElementById('loadMoreBtn').addEventListener('click', () => {
+            const maxPage = Math.ceil(todos.length / pageSize);
+            if (currentPage < maxPage) {
+                currentPage++;
+                render();
+            }
+        });
+
+        document.getElementById('loadPrevBtn').addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                render();
+            }
+        });
+
+        await fetchTodos(); // загружаем данные один раз
+        render();           // потом рендерим список
+        renderProfile();    // рендерим профиль
+    }
+
+    init();
+</script>
+</html>
